@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RouteLab – Greedy vs Backtracking Route Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#eef3f7;--card:#fff;--ink:#12263a;--mute:#5b6f82;--line:#d5dee7;--map:#e3ecf3;--brand:#1d4ed8;--g:#e8710a;--b:#0b8f7a;--ok:#12803c;--bad:#c62828}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1824;--card:#16253a;--ink:#e8f0f7;--mute:#9db0c3;--line:#2a3d55;--map:#112033;--brand:#6c9bff;--g:#ff9a3d;--b:#2fd1b3;--ok:#4cd07d;--bad:#ff7a7a}}
+:root[data-theme="dark"]{--bg:#0e1824;--card:#16253a;--ink:#e8f0f7;--mute:#9db0c3;--line:#2a3d55;--map:#112033;--brand:#6c9bff;--g:#ff9a3d;--b:#2fd1b3;--ok:#4cd07d;--bad:#ff7a7a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "DM Sans",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","DM Sans",sans-serif;margin:0;letter-spacing:-.01em}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px 40px}
+header{padding:28px 0 14px}
+header h1{font-size:clamp(28px,5vw,44px);font-weight:800}
+header p{margin:6px 0 0;color:var(--mute);max-width:62ch}
+.tabs{display:flex;gap:6px;margin:14px 0;border-bottom:1px solid var(--line)}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 16px;font:700 15px "DM Sans";color:var(--mute);cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--brand)}
+button:focus-visible,select:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.grid{display:grid;grid-template-columns:340px 1fr;gap:16px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card+.card{margin-top:14px}
+label,.lab{display:block;font-weight:700;font-size:13px;margin:12px 0 5px}
+select{width:100%;padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:20px;padding:5px 11px;font:500 13px "DM Sans";cursor:pointer}
+.chip[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip:disabled{opacity:.35;cursor:not-allowed}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--bg);color:var(--ink);padding:9px 4px;font:700 13px "DM Sans";cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.run{width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:var(--brand);color:#fff;font:700 16px "DM Sans";cursor:pointer}
+.ghost{border:1px solid var(--line);background:none;color:var(--ink);border-radius:9px;padding:7px 12px;font:600 13px "DM Sans";cursor:pointer}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.msg{color:var(--bad);font-size:13px;min-height:18px;margin-top:8px}
+svg.map{width:100%;height:auto;display:block;background:var(--map);border-radius:12px}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:14px}
+.res .card{margin:0;border-top:5px solid var(--g)}
+.res .card.b{border-top-color:var(--b)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
+.stats div{background:var(--bg);border-radius:9px;padding:8px 10px}
+.stats b{display:block;font:800 20px "Bricolage Grotesque"}
+.stats span{font-size:12px;color:var(--mute)}
+.path{font-size:13px;color:var(--mute)}
+.banner{margin-top:12px;padding:11px 14px;border-radius:10px;background:var(--bg);border-left:5px solid var(--b);font-weight:500}
+.lg{display:flex;gap:16px;font-size:13px;margin-top:8px;flex-wrap:wrap}
+.lg i{display:inline-block;width:22px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.route{stroke-dasharray:1;stroke-dashoffset:1;animation:dr 1.3s ease forwards}
+@keyframes dr{to{stroke-dashoffset:0}}
+@media(prefers-reduced-motion:reduce){.route{animation:none;stroke-dashoffset:0}}
+.doc h2{font-size:22px;margin:22px 0 8px}.doc h2:first-child{margin-top:0}
+.doc p,.doc li{max-width:75ch}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{background:var(--bg)}
+td.w{white-space:normal}
+.pass{color:var(--ok);font-weight:700}.fail{color:var(--bad);font-weight:700}
+code{background:var(--bg);padding:1px 6px;border-radius:5px;font-size:13px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>RouteLab</h1>
+  <p>A delivery-route planner for Bengaluru. Pick a source, a destination and the stops in between, then compare a fast <b>Greedy</b> route with the optimal <b>Backtracking</b> route.</p>
+</header>
+<div class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" id="t1">Prototype</button>
+  <button role="tab" aria-selected="false" id="t2">Analysis &amp; tests</button>
+</div>
+
+<section id="p1">
+<div class="grid">
+  <div>
+    <div class="card">
+      <label for="src">Source</label><select id="src"></select>
+      <label for="dst">Destination</label><select id="dst"></select>
+      <div class="lab">Stops to visit <span style="font-weight:400;color:var(--mute)">(max 10, also clickable on the map)</span></div>
+      <div class="chips" id="chips"></div>
+      <div class="lab">Algorithm</div>
+      <div class="seg" id="seg">
+        <button data-m="greedy" aria-pressed="false">Greedy</button>
+        <button data-m="bt" aria-pressed="false">Backtracking</button>
+        <button data-m="both" aria-pressed="true">Compare</button>
+      </div>
+      <button class="run" id="run">Find route</button>
+      <div class="msg" id="msg" role="alert"></div>
+    </div>
+    <div class="card">
+      <div class="lab" style="margin-top:0">Ready-made test cases</div>
+      <div class="row" id="presets"></div>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <svg class="map" id="map" viewBox="0 0 640 520" role="img" aria-label="Map of Bengaluru with the computed route"></svg>
+      <div class="lg"><span><i style="background:var(--g)"></i>Greedy</span><span><i style="background:var(--b)"></i>Backtracking (optimal)</span><span>Green dot = source, red dot = destination</span></div>
+    </div>
+    <div id="out"></div>
+  </div>
+</div>
+</section>
+
+<section id="p2" class="hide doc">
+<div class="card">
+<h2>1. The routing problem</h2>
+<p>A delivery partner starts at a <b>source</b>, must visit a set of <b>stops</b> (each exactly once) and finishes at a <b>destination</b>. Find the visiting order with the smallest total distance. This is the Travelling Salesman Problem with fixed start and end (an open-path TSP), which appears in courier, school-bus and field-service planning.</p>
+<ul>
+<li><b>Inputs:</b> source, destination, a list of up to 10 stops. Distances come from the latitude/longitude of real Bengaluru localities (Haversine formula × 1.3 road-winding factor).</li>
+<li><b>Outputs:</b> ordered route, total distance (km), estimated time (at 22 km/h city average), nodes explored and run time (ms).</li>
+</ul>
+<h2>2. Chosen algorithms</h2>
+<p><b>Greedy (nearest neighbour):</b> from the current place, always travel to the closest unvisited stop, and finish at the destination. Very fast, but short-sighted: an early cheap move can force a long detour later.</p>
+<p><b>Backtracking (DFS with branch and bound):</b> build the route stop by stop, exploring every ordering. When the distance so far is already at least as large as the best complete route found, that branch is abandoned (pruned) and the algorithm backtracks. It always finds the optimal route.</p>
+<h2>3. Why these algorithms, and the alternatives</h2>
+<div class="tbl"><table>
+<tr><th>Approach</th><th>Optimal?</th><th>Time</th><th>Verdict</th></tr>
+<tr><td>Greedy nearest neighbour</td><td>No</td><td>O(n²)</td><td class="w">Best for large inputs or real-time use; typically 10–25% above optimal.</td></tr>
+<tr><td>Backtracking + pruning</td><td>Yes</td><td>O(n!) worst case</td><td class="w">Ideal for small delivery batches (≤ 10–12 stops); simple and exact.</td></tr>
+<tr><td>Held-Karp dynamic programming</td><td>Yes</td><td>O(n²·2ⁿ)</td><td class="w">Faster than backtracking in the worst case, but needs O(n·2ⁿ) memory.</td></tr>
+<tr><td>Dijkstra / A*</td><td>Shortest path only</td><td>O(E log V)</td><td class="w">Solves point-to-point paths, not the "visit all stops" ordering problem.</td></tr>
+<tr><td>Genetic / 2-opt heuristics</td><td>No</td><td>Tunable</td><td class="w">Better quality than greedy for 50+ stops; more complex to implement.</td></tr>
+</table></div>
+<h2>4. Complexity</h2>
+<p>Let <code>n</code> be the number of stops.</p>
+<div class="tbl"><table>
+<tr><th>Algorithm</th><th>Time</th><th>Space</th></tr>
+<tr><td>Greedy</td><td>O(n²): n steps, each scans up to n stops</td><td>O(n) route + O(n²) distance matrix</td></tr>
+<tr><td>Backtracking (no pruning)</td><td>O(n!): every permutation is tried</td><td>O(n) recursion depth + O(n²) matrix</td></tr>
+<tr><td>Backtracking (branch and bound)</td><td>O(n!) worst case, far less in practice</td><td>O(n) recursion depth + O(n²) matrix</td></tr>
+</table></div>
+</div>
+
+<div class="card">
+<h2>5. Automated test cases</h2>
+<p>Checks correctness of both algorithms, including a hand-built case where greedy is provably not optimal.</p>
+<button class="ghost" id="runTests">Run tests</button>
+<div class="tbl" style="margin-top:10px"><table id="tests"></table></div>
+</div>
+
+<div class="card">
+<h2>6. Experimental results</h2>
+<p>Random points in a unit square, 5 trials per size, averaged. “Gap” is how much longer greedy is than the optimal route. Plain backtracking is run up to 8 stops only, because 9! and beyond gets slow.</p>
+<button class="ghost" id="runBench">Run benchmark</button>
+<div class="tbl" style="margin-top:10px"><table id="bench"></table></div>
+<p id="benchNote" style="color:var(--mute)"></p>
+</div>
+</section>
+</div>
+
+<script>
+const P=[["Yeshwanthpur",13.0285,77.5400],["Majestic",12.9774,77.5726],["Malleshwaram",13.0035,77.5710],["Hebbal",13.0358,77.5970],["Indiranagar",12.9784,77.6408],["MG Road",12.9756,77.6068],["Koramangala",12.9352,77.6245],["Jayanagar",12.9250,77.5938],["Electronic City",12.8452,77.6602],["Whitefield",12.9698,77.7500],["Banashankari",12.9255,77.5468],["Rajajinagar",12.9910,77.5520],["Marathahalli",12.9569,77.7011],["BTM Layout",12.9166,77.6101],["Airport (BLR)",13.1989,77.7068]];
+const $=id=>document.getElementById(id);
+const hav=(a,b)=>{const R=6371,r=x=>x*Math.PI/180,dl=r(b[0]-a[0]),dn=r(b[1]-a[1]);
+ const h=Math.sin(dl/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))*1.3};
+const eu=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+const matrix=(pts,f)=>pts.map(a=>pts.map(b=>f(a,b)));
+
+/* ---------- Algorithm 1: Greedy (nearest neighbour) ---------- */
+function greedy(D,s,t,mids){
+  const t0=performance.now();let cur=s,left=[...mids],route=[s],dist=0,nodes=0;
+  while(left.length){
+    let bi=0;
+    for(let i=0;i<left.length;i++){nodes++;if(D[cur][left[i]]<D[cur][left[bi]])bi=i}
+    const nx=left.splice(bi,1)[0];dist+=D[cur][nx];route.push(nx);cur=nx;
+  }
+  dist+=D[cur][t];route.push(t);
+  return{route,dist,nodes,ms:performance.now()-t0};
+}
+/* ---------- Algorithm 2: Backtracking (DFS + branch and bound) ---------- */
+function backtrack(D,s,t,mids,prune=true){
+  const t0=performance.now(),n=mids.length,used=Array(n).fill(false),path=[s];
+  let best=Infinity,bestRoute=null,nodes=0;
+  (function rec(cur,d,depth){
+    nodes++;
+    if(prune&&d>=best)return;                       // bound: this branch cannot win
+    if(depth===n){const tot=d+D[cur][t];if(tot<best){best=tot;bestRoute=[...path,t]}return}
+    for(let i=0;i<n;i++){
+      if(used[i])continue;
+      used[i]=true;path.push(mids[i]);                // choose
+      rec(mids[i],d+D[cur][mids[i]],depth+1);         // explore
+      path.pop();used[i]=false;                       // backtrack
+    }
+  })(s,0,0);
+  return{route:bestRoute,dist:best,nodes,ms:performance.now()-t0};
+}
+
+/* ---------- UI state ---------- */
+let mode="both",stops=new Set([2,3,5,6]);
+const speed=22;
+const opts=P.map((p,i)=>`<option value="${i}">${p[0]}</option>`).join("");
+$("src").innerHTML=opts;$("dst").innerHTML=opts;$("src").value=0;$("dst").value=14;stops.delete(14);
+
+function renderChips(){
+  const s=+$("src").value,d=+$("dst").value;
+  $("chips").innerHTML=P.map((p,i)=>`<button class="chip" data-i="${i}" aria-pressed="${stops.has(i)}" ${i===s||i===d?"disabled":""}>${p[0]}</button>`).join("");
+}
+$("chips").onclick=e=>{const b=e.target.closest(".chip");if(b)toggle(+b.dataset.i)};
+function toggle(i){
+  if(i===+$("src").value||i===+$("dst").value)return;
+  if(stops.has(i))stops.delete(i);else if(stops.size>=10){$("msg").textContent="Maximum 10 stops. Remove one first.";return}else stops.add(i);
+  $("msg").textContent="";renderChips();drawMap();
+}
+["src","dst"].forEach(id=>$(id).onchange=()=>{stops.delete(+$("src").value);stops.delete(+$("dst").value);renderChips();drawMap()});
+$("seg").onclick=e=>{const b=e.target.closest("button");if(!b)return;mode=b.dataset.m;
+  [...$("seg").children].forEach(x=>x.setAttribute("aria-pressed",x===b))};
+
+const presets=[
+ {n:"Campus to airport",s:0,d:14,m:[2,3,5,6]},
+ {n:"South loop",s:1,d:8,m:[7,10,13,6,5]},
+ {n:"Cross-city, 8 stops",s:0,d:9,m:[2,3,4,5,6,7,10,11]}];
+$("presets").innerHTML=presets.map((p,i)=>`<button class="ghost" data-i="${i}">${p.n}</button>`).join("");
+$("presets").onclick=e=>{const b=e.target.closest("button");if(!b)return;const p=presets[+b.dataset.i];
+  $("src").value=p.s;$("dst").value=p.d;stops=new Set(p.m);renderChips();run()};
+
+/* ---------- Map ---------- */
+const W=640,H=520,pad=48;
+const lats=P.map(p=>p[1]),lngs=P.map(p=>p[2]);
+const minLa=Math.min(...lats),maxLa=Math.max(...lats),minLn=Math.min(...lngs),maxLn=Math.max(...lngs);
+const k=Math.min((W-2*pad)/((maxLn-minLn)*.974),(H-2*pad)/(maxLa-minLa));
+const X=i=>pad+(P[i][2]-minLn)*.974*k+((W-2*pad)-(maxLn-minLn)*.974*k)/2;
+const Y=i=>H-pad-(P[i][1]-minLa)*k-((H-2*pad)-(maxLa-minLa)*k)/2;
+function drawMap(res){
+  const s=+$("src").value,d=+$("dst").value;let h="";
+  const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  if(res&&res.g){h+=`<polyline points="${res.g.route.map(i=>X(i)+","+Y(i)).join(" ")}" fill="none" stroke="var(--g)" stroke-width="4" stroke-dasharray="9 7" stroke-linejoin="round" opacity=".9"/>`}
+  if(res&&res.b){h+=`<polyline class="route" pathLength="1" points="${res.b.route.map(i=>X(i)+","+Y(i)).join(" ")}" fill="none" stroke="var(--b)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`}
+  P.forEach((p,i)=>{
+    const sel=stops.has(i),end=i===s||i===d,x=X(i),y=Y(i);
+    const col=i===s?"var(--ok)":i===d?"var(--bad)":sel?"var(--brand)":"var(--mute)";
+    h+=`<g style="cursor:pointer" onclick="toggle(${i})"><circle cx="${x}" cy="${y}" r="${end?10:sel?8:5}" fill="${col}" stroke="var(--card)" stroke-width="2"/>`;
+    h+=`<text x="${x+12}" y="${y+4}" font-size="${sel||end?13:11}" font-weight="${sel||end?700:400}" fill="var(--ink)" opacity="${sel||end?1:.65}" style="paint-order:stroke;stroke:var(--map);stroke-width:3px">${p[0]}</text></g>`;
+  });
+  const order=res&&(res.b||res.g);
+  if(order)order.route.forEach((ix,n)=>{if(n>0&&n<order.route.length-1){h+=`<circle cx="${X(ix)-12}" cy="${Y(ix)-12}" r="9" fill="var(--ink)"/><text x="${X(ix)-12}" y="${Y(ix)-8}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bg)">${n}</text>`}});
+  $("map").innerHTML=h;
+}
+
+/* ---------- Run ---------- */
+function run(){
+  const s=+$("src").value,d=+$("dst").value,mids=[...stops].filter(i=>i!==s&&i!==d);
+  if(s===d){$("msg").textContent="Source and destination must be different.";return}
+  $("msg").textContent="";
+  const D=matrix(P.map(p=>[p[1],p[2]]),hav),res={};
+  if(mode!=="bt")res.g=greedy(D,s,d,mids);
+  if(mode!=="greedy")res.b=backtrack(D,s,d,mids,true);
+  drawMap(res);
+  const card=(r,name,cls)=>`<div class="card ${cls}"><h3>${name}</h3><div class="stats">
+   <div><b>${r.dist.toFixed(1)} km</b><span>total distance</span></div>
+   <div><b>${Math.round(r.dist/speed*60)} min</b><span>est. travel time</span></div>
+   <div><b>${r.nodes.toLocaleString()}</b><span>nodes explored</span></div>
+   <div><b>${r.ms.toFixed(2)} ms</b><span>run time</span></div></div>
+   <div class="path">${r.route.map((i,n)=>`${n?n+". ":""}${P[i][0]}`.replace(/^(\d+)\. /,"$1. ")).join(" → ")}</div></div>`;
+  let h='<div class="res">';
+  if(res.g)h+=card(res.g,"Greedy route","");
+  if(res.b)h+=card(res.b,"Backtracking route","b");
+  h+="</div>";
+  if(res.g&&res.b){const diff=res.g.dist-res.b.dist;
+    h+=diff>1e-6?`<div class="banner">Backtracking saves <b>${diff.toFixed(1)} km</b> (${(diff/res.g.dist*100).toFixed(1)}% shorter), but explored ${res.b.nodes.toLocaleString()} nodes versus ${res.g.nodes} for greedy.</div>`
+    :`<div class="banner">Both algorithms found the same optimal route here. Try the “Cross-city, 8 stops” test case to see them differ.</div>`}
+  $("out").innerHTML=h;
+}
+$("run").onclick=run;
+
+/* ---------- Tabs ---------- */
+function tab(n){$("p1").classList.toggle("hide",n!==1);$("p2").classList.toggle("hide",n!==2);
+  $("t1").setAttribute("aria-selected",n===1);$("t2").setAttribute("aria-selected",n===2)}
+$("t1").onclick=()=>tab(1);$("t2").onclick=()=>tab(2);
+
+/* ---------- Test cases ---------- */
+function rndPts(n){return Array.from({length:n},()=>[Math.random(),Math.random()])}
+$("runTests").onclick=()=>{
+  const T=[];const add=(n,ok,det)=>T.push([n,ok,det]);
+  const line=[[0,0],[1,0],[2,0],[3,0]],DL=matrix(line,eu);
+  let g=greedy(DL,0,3,[1,2]),b=backtrack(DL,0,3,[1,2]);
+  add("Collinear points: both give optimal distance 3",Math.abs(g.dist-3)<1e-9&&Math.abs(b.dist-3)<1e-9,`greedy ${g.dist}, backtracking ${b.dist}`);
+  g=greedy(DL,0,3,[]);b=backtrack(DL,0,3,[]);
+  add("No stops: route goes straight from source to destination",g.route.join()==="0,3"&&b.route.join()==="0,3","route 0 → 3");
+  const tp=[[0,0],[1,0],[-1.2,0],[2,0]],DT=matrix(tp,eu);
+  g=greedy(DT,0,3,[1,2]);b=backtrack(DT,0,3,[1,2]);
+  add("Greedy trap: backtracking strictly beats greedy",b.dist<g.dist-1e-9,`greedy ${g.dist.toFixed(1)} vs backtracking ${b.dist.toFixed(1)}`);
+  let okSE=true,okAll=true,okLE=true,okPr=true;
+  for(let k=0;k<20;k++){
+    const n=3+Math.floor(Math.random()*5),pts=rndPts(n+2),D=matrix(pts,eu),m=[...Array(n).keys()].map(i=>i+2);
+    const gg=greedy(D,0,1,m),bb=backtrack(D,0,1,m,true),bp=backtrack(D,0,1,m,false);
+    if(bb.route[0]!==0||bb.route.at(-1)!==1||gg.route[0]!==0||gg.route.at(-1)!==1)okSE=false;
+    if(new Set(bb.route).size!==n+2||bb.route.length!==n+2||new Set(gg.route).size!==n+2)okAll=false;
+    if(bb.dist>gg.dist+1e-9)okLE=false;
+    if(Math.abs(bb.dist-bp.dist)>1e-9||bb.nodes>bp.nodes)okPr=false;
+  }
+  add("20 random cases: routes start at source and end at destination",okSE,"");
+  add("20 random cases: every stop visited exactly once",okAll,"");
+  add("20 random cases: backtracking distance ≤ greedy distance",okLE,"");
+  add("20 random cases: pruning keeps optimal result and explores fewer nodes",okPr,"");
+  $("tests").innerHTML="<tr><th>Test</th><th>Result</th><th>Detail</th></tr>"+T.map(t=>`<tr><td class="w">${t[0]}</td><td class="${t[1]?"pass":"fail"}">${t[1]?"PASS":"FAIL"}</td><td class="w">${t[2]}</td></tr>`).join("");
+};
+
+/* ---------- Benchmark ---------- */
+$("runBench").onclick=async()=>{
+  const btn=$("runBench");btn.disabled=true;btn.textContent="Running…";
+  let h="<tr><th>Stops</th><th>Greedy ms</th><th>Greedy nodes</th><th>Backtracking ms</th><th>BT nodes (pruned)</th><th>BT nodes (plain)</th><th>Plain ms</th><th>Greedy gap</th></tr>";
+  $("bench").innerHTML=h;
+  for(let n=3;n<=10;n++){
+    let a={gm:0,gn:0,bm:0,bn:0,pn:0,pm:0,gap:0};const tr=5;
+    for(let t=0;t<tr;t++){
+      const pts=rndPts(n+2),D=matrix(pts,eu),m=[...Array(n).keys()].map(i=>i+2);
+      const g=greedy(D,0,1,m),b=backtrack(D,0,1,m,true);
+      a.gm+=g.ms;a.gn+=g.nodes;a.bm+=b.ms;a.bn+=b.nodes;a.gap+=(g.dist-b.dist)/b.dist*100;
+      if(n<=8){const p=backtrack(D,0,1,m,false);a.pn+=p.nodes;a.pm+=p.ms}
+    }
+    const f=x=>(x/tr);
+    h+=`<tr><td>${n}</td><td>${f(a.gm).toFixed(3)}</td><td>${Math.round(f(a.gn))}</td><td>${f(a.bm).toFixed(2)}</td><td>${Math.round(f(a.bn)).toLocaleString()}</td><td>${n<=8?Math.round(f(a.pn)).toLocaleString():"skipped"}</td><td>${n<=8?f(a.pm).toFixed(2):"-"}</td><td>${f(a.gap).toFixed(1)}%</td></tr>`;
+    $("bench").innerHTML=h;
+    await new Promise(r=>setTimeout(r,20));
+  }
+  $("benchNote").textContent="Reading the results: greedy stays near-instant while its route is usually a little longer. Plain backtracking grows factorially, and branch-and-bound pruning cuts the nodes explored by a large factor while still returning the optimal route.";
+  btn.disabled=false;btn.textContent="Run benchmark again";
+};
+
+renderChips();drawMap();run();
+</script>
+</body>
+</html>
